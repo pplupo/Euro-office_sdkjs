@@ -588,6 +588,7 @@
 		// 33 !
 		// 34 "
 		// 39 '
+		// 42 * (markdown emphasis closing delimiter)
 		// 45 -
 		// 58 :
 		// 59 ;
@@ -595,6 +596,7 @@
 		if (33 === this.Value
 			|| 34 === this.Value
 			|| 39 === this.Value
+			|| 42 === this.Value
 			|| 45 === this.Value
 			|| 58 === this.Value
 			|| 59 === this.Value

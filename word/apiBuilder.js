@@ -32317,6 +32317,12 @@
 			Asc.editor.AI.apply(Asc.editor, arguments);
 		};
 	};
-	
+
+	// экспортируем конвертер документ->Markdown/HTML, чтобы им можно было пользоваться
+	// не только из скриптов Document Builder-а (Api), но и из обычного редактора (word/api.js) -
+	// нужно для команд "Copy as Markdown" и "Save as Markdown"
+	window['AscWord'] = window['AscWord'] || {};
+	window['AscWord'].CMarkdownConverter = window.AscWord.CMarkdownConverter = CMarkdownConverter;
+
 }(window, null));
 

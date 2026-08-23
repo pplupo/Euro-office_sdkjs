@@ -25062,6 +25062,22 @@ CDocument.prototype.IsAutoCorrectHyphensWithDash = function()
 	return this.AutoCorrectSettings.IsHyphensWithDash();
 };
 /**
+ * Устанавливаем параметр автозамены markdown-разметки (заголовки, выделение) при наборе текста
+ * @param isReplace {boolean}
+ */
+CDocument.prototype.SetAutoCorrectMarkdown = function(isReplace)
+{
+	this.AutoCorrectSettings.SetMarkdown(isReplace);
+};
+/**
+ * Запрашиваем настройку автозамены markdown-разметки при наборе текста
+ * @returns {boolean}
+ */
+CDocument.prototype.IsAutoCorrectMarkdown = function()
+{
+	return this.AutoCorrectSettings.IsMarkdown();
+};
+/**
  * Запрашиваем настройку автозамены для французской пунктуации
  * @returns {boolean}
  */

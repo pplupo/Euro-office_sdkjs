@@ -153,6 +153,7 @@
 			"common/Scrolls/mobileTouchManagerBase.js",
 			"word/Drawing/mobileTouchManager.js",
 
+			"common/MarkdownToHtml.js",
 			"common/wordcopypaste.js",
 			"common/intervalTree.js",
 
