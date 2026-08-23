@@ -38,6 +38,7 @@
 	const AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE    = 0x00000010;
 	const AUTOCORRECT_FLAGS_NUMBERING                = 0x00000020;
 	const AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD = 0x00000040;
+	const AUTOCORRECT_FLAGS_MARKDOWN                 = 0x00000080;
 	
 	const ALLOWED_SYMBOLS_DOUBLE_SPACE_TO_PERIOD = {
 		0x0022 : 1, // "
@@ -161,6 +162,12 @@
 			return this.private_Return();
 
 		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_NUMBERING, this.private_ProcessNumbering))
+			return this.private_Return();
+
+		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_MARKDOWN, this.private_ProcessMarkdownHeadingAutoCorrect))
+			return this.private_Return();
+
+		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_MARKDOWN, this.private_ProcessMarkdownEmphasisAutoCorrect))
 			return this.private_Return();
 
 		return this.private_Return();
@@ -978,6 +985,142 @@
 
 		return false;
 	};
+	/**
+	 * Автозамена markdown-заголовка: "# ", "## ", ... "###### " в начале параграфа
+	 * превращаем в стиль Heading 1..6
+	 * @returns {boolean}
+	 */
+	CRunAutoCorrect.prototype.private_ProcessMarkdownHeadingAutoCorrect = function()
+	{
+		let oDocument          = this.Document;
+		let oParagraph         = this.Paragraph;
+		let oContentPos        = this.ContentPos;
+		let oRunItem            = this.RunItem;
+		let oRunElementsBefore = this.RunElementsBefore;
+
+		if (!oDocument.IsAutoCorrectMarkdown() || !oParagraph.bFromDocument)
+			return false;
+
+		if (!oRunItem.IsSpace() || !oRunElementsBefore.IsEnd() || oParagraph.GetNumPr())
+			return false;
+
+		let oHeadingMatch = /^(#{1,6})$/.exec(this.Text);
+		if (!oHeadingMatch)
+			return false;
+
+		if (this.private_IsDocumentLocked())
+			return false;
+
+		let nLevel = oHeadingMatch[1].length;
+
+		oDocument.StartAction(AscDFH.historydescription_Document_AutomaticListAsType);
+
+		let oStartPos = oParagraph.GetStartPos();
+		let oEndPos   = oContentPos;
+		oContentPos.Update(this.Pos + 1, oContentPos.GetDepth());
+
+		oParagraph.RemoveSelection();
+		oParagraph.SetSelectionUse(true);
+		oParagraph.SetSelectionContentPos(oStartPos, oEndPos, false);
+		oParagraph.Remove(1);
+		oParagraph.RemoveSelection();
+		oParagraph.MoveCursorToStartPos(false);
+
+		oDocument.SetParagraphStyle("Heading " + nLevel);
+
+		oDocument.Recalculate();
+		oDocument.FinalizeAction();
+
+		this.RunItem = null;
+
+		return true;
+	};
+	/**
+	 * Автозамена markdown-выделения: "*текст*" превращаем в жирный текст, удаляя звёздочки.
+	 * Поддерживается только случай, когда открывающая и закрывающая звёздочки находятся
+	 * в пределах одного рана (обычный случай при непрерывном наборе текста)
+	 * @returns {boolean}
+	 */
+	CRunAutoCorrect.prototype.private_ProcessMarkdownEmphasisAutoCorrect = function()
+	{
+		let oDocument   = this.Document;
+		let oParagraph  = this.Paragraph;
+		let oContentPos = this.ContentPos;
+		let oRunItem    = this.RunItem;
+
+		if (!oDocument.IsAutoCorrectMarkdown() || !oParagraph.bFromDocument)
+			return false;
+
+		if (!(para_Text === oRunItem.Type && 0x002A === oRunItem.Value)) // *
+			return false;
+
+		// собираем текст перед курсором отдельно от this.Text (которое обрывается на первом же
+		// пробеле) - "*bold phrase*" должно поддерживать пробелы внутри выделения
+		let oOwnElementsBefore = new CParagraphRunElements(oContentPos, g_nMaxElements, [para_Text, para_Space], false);
+		oOwnElementsBefore.SetBreakOnBadType(true);
+		oOwnElementsBefore.SetBreakOnDifferentClass(true);
+		oOwnElementsBefore.SetBreakOnMath(true);
+		oOwnElementsBefore.SetSaveContentPositions(true);
+		oParagraph.GetPrevRunElements(oOwnElementsBefore);
+
+		let arrElements = oOwnElementsBefore.GetElements();
+		let arrPositions = oOwnElementsBefore.GetContentPositions();
+		let nCount       = arrElements.length;
+		if (0 === nCount)
+			return false;
+
+		let sText = "";
+		for (let nIndex = 0; nIndex < nCount; ++nIndex)
+		{
+			let oEl = arrElements[nCount - 1 - nIndex];
+			sText += (para_Space === oEl.Type) ? " " : String.fromCodePoint(oEl.Value);
+		}
+
+		let nOpenIdx = sText.lastIndexOf("*");
+		if (-1 === nOpenIdx)
+			return false;
+
+		let sInner = sText.slice(nOpenIdx + 1);
+		if (0 === sInner.length || /^\s|\s$/.test(sInner))
+			return false;
+
+		let oOpenPos = arrPositions[nCount - 1 - nOpenIdx];
+
+		if (!oOpenPos || oOpenPos.GetDepth() !== oContentPos.GetDepth())
+			return false;
+
+		if (this.private_IsDocumentLocked())
+			return false;
+
+		oDocument.StartAction(AscDFH.historydescription_Document_AutomaticListAsType);
+
+		let oInnerStart = oOpenPos.Copy();
+		oInnerStart.Update(oOpenPos.Get(oOpenPos.GetDepth()) + 1, oOpenPos.GetDepth());
+
+		let oInnerEnd = oContentPos.Copy();
+		oInnerEnd.Update(this.Pos, oInnerEnd.GetDepth());
+
+		let oCloseDelPos = oContentPos;
+		oContentPos.Update(this.Pos, oContentPos.GetDepth());
+
+		oParagraph.RemoveSelection();
+		oParagraph.SetSelectionUse(true);
+		oParagraph.SetSelectionContentPos(oInnerStart, oInnerEnd, false);
+		let oTextPr = new CTextPr();
+		oTextPr.SetBold(true);
+		oParagraph.ApplyTextPr(oTextPr);
+		oParagraph.RemoveSelection();
+
+		oParagraph.RemoveRunElement(oCloseDelPos);
+		oParagraph.RemoveRunElement(oOpenPos);
+
+		oDocument.Recalculate();
+		oDocument.FinalizeAction();
+
+		this.RunItem = null;
+
+		return true;
+	};
 	CRunAutoCorrect.prototype.private_GetSuitableNumPr = function()
 	{
 		let oParagraph = this.Paragraph;
@@ -1447,6 +1590,7 @@
 	window['AscWord'].AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE    = AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE;
 	window['AscWord'].AUTOCORRECT_FLAGS_NUMBERING                = AUTOCORRECT_FLAGS_NUMBERING;
 	window['AscWord'].AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD = AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD;
+	window['AscWord'].AUTOCORRECT_FLAGS_MARKDOWN                 = AUTOCORRECT_FLAGS_MARKDOWN;
 
 })(window);
 

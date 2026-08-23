@@ -41,6 +41,7 @@
 		this.FirstLetterOfSentences = true;
 		this.FirstLetterOfCells     = true;
 		this.Hyperlinks             = true;
+		this.Markdown               = true;
 		this.FirstLetterExceptions  = new AscCommon.CFirstLetterExceptions();
 	}
 	//getters
@@ -80,6 +81,10 @@
 	{
 		return this.Hyperlinks;
 	};
+	CAutoCorrectSettings.prototype.IsMarkdown = function()
+	{
+		return this.Markdown;
+	};
 	//setters
 	CAutoCorrectSettings.prototype.SetSmartQuotes  = function(bVal)
 	{
@@ -116,6 +121,10 @@
 	CAutoCorrectSettings.prototype.SetHyperlinks = function(bVal)
 	{
 		this.Hyperlinks = bVal;
+	};
+	CAutoCorrectSettings.prototype.SetMarkdown = function(bVal)
+	{
+		this.Markdown = bVal;
 	};
 	CAutoCorrectSettings.prototype.GetFirstLetterExceptionManager = function()
 	{

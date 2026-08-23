@@ -12702,6 +12702,74 @@ background-repeat: no-repeat;\
 
 		return oLogicDocument.SetAutoCorrectHyphensWithDash(isReplace);
 	};
+	asc_docs_api.prototype.asc_SetAutoCorrectMarkdown = function(isReplace)
+	{
+		var oLogicDocument = this.WordControl.m_oLogicDocument;
+		if (!oLogicDocument)
+			return;
+
+		return oLogicDocument.SetAutoCorrectMarkdown(isReplace);
+	};
+	/**
+	 * Возвращает текущий документ (или текущее выделение, если оно есть) в виде текста Markdown.
+	 * Используется командой "Copy as Markdown"
+	 * @returns {string}
+	 */
+	asc_docs_api.prototype.asc_GetMarkdownText = function()
+	{
+		var oLogicDocument = this.WordControl && this.WordControl.m_oLogicDocument;
+		if (!oLogicDocument || !window.AscWord || !window.AscWord.CMarkdownConverter)
+			return "";
+
+		var oConverter = new window.AscWord.CMarkdownConverter({convertType : "markdown", base64img : true});
+		return oConverter.DoMarkdown();
+	};
+	/**
+	 * Копирует текущий документ (или текущее выделение) в системный буфер обмена как текст Markdown.
+	 * Команда меню "Copy as Markdown"
+	 */
+	asc_docs_api.prototype.asc_CopyAsMarkdown = function()
+	{
+		var sMarkdown = this.asc_GetMarkdownText();
+		if (!sMarkdown)
+			return;
+
+		if (window.navigator && window.navigator.clipboard && window.navigator.clipboard.writeText)
+			window.navigator.clipboard.writeText(sMarkdown);
+	};
+	/**
+	 * Сохраняет весь документ в виде файла .md (конвертация происходит на клиенте,
+	 * т.к. x2t/сервер конвертации не поддерживают формат Markdown).
+	 * Команда меню "Save as Markdown"
+	 */
+	asc_docs_api.prototype.asc_SaveAsMarkdown = function()
+	{
+		var oLogicDocument = this.WordControl && this.WordControl.m_oLogicDocument;
+		if (!oLogicDocument || !window.AscWord || !window.AscWord.CMarkdownConverter)
+			return;
+
+		// "Save as Markdown" всегда экспортирует весь документ целиком, а не текущее выделение
+		oLogicDocument.RemoveSelection();
+
+		var oConverter = new window.AscWord.CMarkdownConverter({convertType : "markdown", base64img : true});
+		var sMarkdown  = oConverter.DoMarkdown();
+
+		var sFileName = AscCommon.changeFileExtention(this.documentTitle || "Document", "md", Asc.c_nMaxDownloadTitleLen);
+		AscCommon.DownloadFileFromBytes(sMarkdown, sFileName, "text/markdown;charset=utf-8");
+	};
+	/**
+	 * Вставляет текст Markdown в текущую позицию курсора, преобразуя его в форматированный текст.
+	 * Команда меню "Paste as Markdown"
+	 * @param {string} sMarkdownText
+	 */
+	asc_docs_api.prototype.asc_PasteFromMarkdown = function(sMarkdownText)
+	{
+		if (!sMarkdownText || !AscCommon.ConvertMarkdownToHtml)
+			return;
+
+		var sHtml = AscCommon.ConvertMarkdownToHtml(sMarkdownText);
+		this["pluginMethod_PasteHtml"](sHtml);
+	};
 	asc_docs_api.prototype.asc_SetAutoCorrectFirstLetterOfSentences = function(isCorrect)
 	{
 		var oLogicDocument = this.WordControl.m_oLogicDocument;
@@ -15659,6 +15727,11 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_SetAutomaticNumberedLists']             = asc_docs_api.prototype.asc_SetAutomaticNumberedLists;
 	asc_docs_api.prototype['asc_SetAutoCorrectSmartQuotes']             = asc_docs_api.prototype.asc_SetAutoCorrectSmartQuotes;
 	asc_docs_api.prototype['asc_SetAutoCorrectHyphensWithDash']         = asc_docs_api.prototype.asc_SetAutoCorrectHyphensWithDash;
+	asc_docs_api.prototype['asc_SetAutoCorrectMarkdown']                = asc_docs_api.prototype.asc_SetAutoCorrectMarkdown;
+	asc_docs_api.prototype['asc_GetMarkdownText']                       = asc_docs_api.prototype.asc_GetMarkdownText;
+	asc_docs_api.prototype['asc_CopyAsMarkdown']                        = asc_docs_api.prototype.asc_CopyAsMarkdown;
+	asc_docs_api.prototype['asc_SaveAsMarkdown']                        = asc_docs_api.prototype.asc_SaveAsMarkdown;
+	asc_docs_api.prototype['asc_PasteFromMarkdown']                     = asc_docs_api.prototype.asc_PasteFromMarkdown;
 	asc_docs_api.prototype['asc_SetAutoCorrectFirstLetterOfSentences']  = asc_docs_api.prototype.asc_SetAutoCorrectFirstLetterOfSentences;
 	asc_docs_api.prototype['asc_SetAutoCorrectHyperlinks']              = asc_docs_api.prototype.asc_SetAutoCorrectHyperlinks;
 	asc_docs_api.prototype['asc_SetAutoCorrectFirstLetterOfCells']      = asc_docs_api.prototype.asc_SetAutoCorrectFirstLetterOfCells;
